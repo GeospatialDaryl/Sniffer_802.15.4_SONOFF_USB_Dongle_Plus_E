@@ -71,6 +71,10 @@ def capture(fifo, device, baud, channel_filter=None):
 
   ser = serial.Serial(device, baud, timeout=1)
 
+  # The dongle only changes channel on a {"C":n}\r command (see readme)
+  if channel_filter:
+    ser.write(('{"C":%d}\r' % int(channel_filter)).encode())
+
   with open(fifo, 'wb', 0) as f:
     header = struct.pack('<IHHIIII',
       PCAP_MAGIC,

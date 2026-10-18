@@ -308,10 +308,10 @@ void Console_PhyToJSONV2( PhyRx_t * phy_rx)
 
     jsonTxBuffer[i++] = '{';
 
-    write_json_parameter(jsonTxBuffer, &i, 'L', (uint8_t *)(uint32_t)phy_rx->len, 3+1, "%d", true);
-    write_json_parameter(jsonTxBuffer, &i, 'Q', (uint8_t *)(uint32_t)phy_rx->lqi, 3+1, "%d", true);
-    write_json_parameter(jsonTxBuffer, &i, 'R', (uint8_t *)(uint32_t)phy_rx->rssi, 3+1, "%d", true);
-    write_json_parameter(jsonTxBuffer, &i, 'C', (uint8_t *)(uint32_t)phy_rx->channel, 3+1, "%d", true);
+    write_json_parameter(jsonTxBuffer, &i, 'L', (uint8_t *)(uint32_t)phy_rx->len, 4+1, "%d", true);
+    write_json_parameter(jsonTxBuffer, &i, 'Q', (uint8_t *)(uint32_t)phy_rx->lqi, 4+1, "%d", true);
+    write_json_parameter(jsonTxBuffer, &i, 'R', (uint8_t *)(uint32_t)phy_rx->rssi, 4+1, "%d", true);
+    write_json_parameter(jsonTxBuffer, &i, 'C', (uint8_t *)(uint32_t)phy_rx->channel, 4+1, "%d", true);
     jsonTxBuffer[i++] = '"';
     jsonTxBuffer[i++] = 'S';
     jsonTxBuffer[i++] = '"';

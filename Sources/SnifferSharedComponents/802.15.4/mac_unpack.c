@@ -113,8 +113,8 @@ MAC_Unpack_Result_t MAC_Unpack( MAC_Frame_packed_t * in, MAC_Frame_Unpacked_t * 
         return MAC_UNPACK_PARAMETER_ERROR;
     }
 
-    //Minimum frame size is frame control
-    if( in->lenght < MHR_FRAME_CONTROL_SIZE )
+    //Minimum frame size is frame control, maximum is the size of the buffer
+    if( ( in->lenght < MHR_FRAME_CONTROL_SIZE ) || ( in->lenght > MAC_FRAME_MAX_SIZE ) )
     {
         return MAC_UNPACK_FRAME_SIZE_ERROR;
     }
@@ -332,6 +332,12 @@ MAC_Unpack_Result_t MAC_Unpack( MAC_Frame_packed_t * in, MAC_Frame_Unpacked_t * 
     //IE - not supported for now
     //if( out->frame_control.ie_present )
 
+    //header must leave room for the FCS
+    if( in->lenght < (index + MAC_FCS_SIZE) )
+    {
+        return MAC_UNPACK_FRAME_SIZE_ERROR;
+    }
+
     //copy payload content
     if( in->lenght > (index + MAC_FCS_SIZE) )
     {
@@ -456,10 +462,13 @@ MAC_Pack_Result_t MAC_Pack( MAC_Frame_Unpacked_t * in, MAC_Frame_packed_t * out)
             ( in->frame_control.source_addressing_mode == MAC_ADDRESSING_MODE_EXTENDED_ADDRESS ))
         {
             source_panid_present = true;
-            if( in->frame_control.panid_compression != MAC_PANID_COMPRESSION_ENABLED )  //consider evaluate this before and setting interrnally the panid compression field
-            {
-                source_panid_present = false;
-            }
+        }
+
+        //same rule as MAC_Unpack: with both addresses, compression drops the source PAN id
+        if( destination_panid_present && source_panid_present &&
+            ( in->frame_control.panid_compression == MAC_PANID_COMPRESSION_ENABLED ) )
+        {
+            source_panid_present = false;
         }
     }
 

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zigbee Scanner</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1c2330;--mut:#667085;--line:#e2e5ea;--acc:#2563eb;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#10141b;--card:#181e28;--fg:#e6e9ef;--mut:#8b95a7;--line:#2a3340;--acc:#6ea0ff;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:18px;margin:0 0 12px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px;overflow-x:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+button{cursor:pointer}button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.verdict{font-size:15px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--mut)}
+.ok .dot{background:var(--ok)}.warn .dot{background:var(--warn)}.bad .dot{background:var(--bad)}
+.bars{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;align-items:end;height:120px}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mut)}
+.bar i{width:100%;background:var(--acc);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.bar.cur b{color:var(--acc)}.bar.cur i{outline:2px solid var(--fg)}
+table{width:100%;border-collapse:collapse;font-size:13px}th{color:var(--mut);font-weight:500;text-align:left}
+td,th{padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.mono{font-family:ui-monospace,monospace}.tag{padding:1px 6px;border-radius:10px;background:var(--line);font-size:12px}
+.tag.rf{background:var(--ok);color:#000}.mut{color:var(--mut)}
+</style></head><body><main>
+<h1>Zigbee Scanner <span class="mut" id="status"></span></h1>
+
+<div class="card"><div class="row">
+  <button id="m-scan">Scan 11–26</button><button id="m-lock">Lock channel</button><button id="m-idle">Pause</button>
+  <label>Channel <select id="chan"></select></label>
+  <label>Dwell <input id="dwell" type="number" min="1" max="300" value="10" style="width:64px"> s</label>
+</div>
+<p class="mut" style="margin:8px 0 0">Meters report every few seconds to minutes, so use a dwell of 15 s or more. Scan a few full cycles before drawing conclusions.</p></div>
+
+<div class="card"><h2>Meter check</h2><div id="verdict" class="verdict"></div></div>
+<div class="card"><h2>Frames per channel</h2><div class="bars" id="bars"></div></div>
+<div class="card"><h2>Networks (PAN)</h2><table id="nets"></table></div>
+<div class="card"><h2>Nodes</h2><table id="nodes"></table></div>
+<div class="card"><h2>Recent frames</h2><table id="recent"></table></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const sel=$('chan');for(let c=11;c<=26;c++)sel.add(new Option(c,c));
+let cfgLoaded=false;
+function post(b){fetch('/api/config',{method:'POST',body:JSON.stringify(b)})}
+$('m-scan').onclick=()=>post({mode:'scan',dwell:+$('dwell').value});
+$('m-lock').onclick=()=>post({mode:'lock',channel:+sel.value});
+$('m-idle').onclick=()=>post({mode:'idle'});
+sel.onchange=()=>{if(document.querySelector('#m-lock.on'))post({mode:'lock',channel:+sel.value})};
+$('dwell').onchange=()=>post({dwell:+$('dwell').value});
+function cell(tr,v,cls){const td=document.createElement('td');td.textContent=v??'';if(cls)td.className=cls;tr.appendChild(td);return td}
+function fill(t,head,rows){t.replaceChildren();const h=t.insertRow();head.forEach(x=>{const th=document.createElement('th');th.textContent=x;h.appendChild(th)});
+  rows.forEach(r=>{const tr=t.insertRow();r.forEach(v=>{if(v&&v.tag){const td=cell(tr,'');const s=document.createElement('span');s.className='tag '+(v.cls||'');s.textContent=v.tag;td.appendChild(s)}else cell(tr,v)})});
+  if(!rows.length){const tr=t.insertRow();const td=cell(tr,'Nothing yet');td.colSpan=head.length;td.className='mut'}}
+const age=s=>s==null?'–':s<90?s.toFixed(0)+' s':(s/60).toFixed(0)+' min';
+function render(s){
+  const cfg=s.config;
+  $('status').textContent=s.mode==='idle'?'paused':(s.mode+' · ch '+s.current_channel);
+  ['scan','lock','idle'].forEach(m=>$('m-'+m).classList.toggle('on',s.mode===m));
+  if(!cfgLoaded){sel.value=cfg.channel;$('dwell').value=cfg.dwell;cfgLoaded=true}
+  const max=Math.max(1,...s.channels.map(c=>c.frames));
+  $('bars').replaceChildren(...s.channels.map(c=>{const d=document.createElement('div');d.className='bar'+(c.channel===s.current_channel?' cur':'');
+    d.title=c.frames+' frames, '+c.bad_fcs+' bad FCS, avg RSSI '+(c.avg_rssi??'–')+', listened '+c.dwell_s+' s';
+    d.innerHTML='<span></span><i></i><b></b>';d.children[0].textContent=c.frames||'';d.children[1].style.height=(c.frames/max*100)+'%';d.children[2].textContent=c.channel;return d}));
+  const rf=s.nodes.filter(n=>n.rainforest);
+  const covered=s.channels.filter(c=>c.dwell_s>=10).length;
+  const v=$('verdict');
+  const secured=s.networks.filter(n=>n.secured&&n.frames>3);
+  if(rf.length){v.className='verdict ok';v.textContent='';v.append(Object.assign(document.createElement('span'),{className:'dot'}),
+    'Rainforest device heard on ch '+rf[0].channel+' (PAN '+rf[0].pan+'), last frame '+age(rf[0].age_s)+' ago. Its radio is alive.')}
+  else if(s.networks.length){const n=s.networks[0];v.className='verdict warn';v.textContent='';v.append(Object.assign(document.createElement('span'),{className:'dot'}),
+    s.networks.length+' network(s) heard; most active is PAN '+n.pan+' on ch '+n.channel+' ('+n.frames+' frames, last '+age(n.age_s)+' ago). No Rainforest address seen yet — the meter or EAGLE often shows only a short address; compare against the EAGLE\'s own PAN/channel.')}
+  else{v.className='verdict '+(covered>=16?'bad':'');v.textContent='';v.append(Object.assign(document.createElement('span'),{className:'dot'}),
+    covered>=16?'Full sweep done and no Zigbee frames heard. Check the antenna and the dongle firmware, move closer to the meter, and keep scanning.':'No Zigbee frames yet. Channels listened to ≥10 s: '+covered+'/16.')}
+  fill($('nets'),['Ch','PAN','Ext PAN','Frames','Secured','Permit join','RSSI','Last'],s.networks.map(n=>[n.channel,n.pan,n.ext_pan||'',n.frames,n.secured?'yes':'',n.permit_join==null?'':(n.permit_join?'yes':'no'),n.rssi,age(n.age_s)]));
+  fill($('nodes'),['Ch','PAN','Addr','EUI-64','Frames','Kinds','RSSI','Last'],s.nodes.map(n=>[n.channel,n.pan,n.addr,n.ext?{tag:n.ext,cls:n.rainforest?'rf':''}:'',n.frames,Object.entries(n.kinds).map(([k,c])=>k+' ×'+c).join(', '),n.rssi,age(n.age_s)]));
+  fill($('recent'),['Age','Ch','RSSI','Type','PAN','Src','Dst','Detail'],s.recent.map(r=>{const f=r.f;return[age(r.age_s),r.ch,r.rssi,f.type,f.pan!=null?'0x'+f.pan.toString(16).toUpperCase().padStart(4,'0'):'',f.src_nwk||f.src||f.src_ext||'',f.nwk?f.nwk.dst:(f.dst||''),f.cmd||(f.nwk&&(f.nwk.cmd||(f.nwk.secure?'secured':'')))||(f.permit_join!=null?'beacon':'')]}));
+}
+async function tick(){try{render(await (await fetch('/api/state')).json())}catch(e){$('status').textContent='server unreachable'}}
+tick();setInterval(tick,1000);
+</script></body></html>

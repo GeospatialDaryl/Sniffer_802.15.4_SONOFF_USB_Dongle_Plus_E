@@ -28,8 +28,11 @@
     - [Windows](#windows)
     - [Linux](#linux)
   - [Wireshark color scheme for ZigBee](#wireshark-color-scheme-for-zigbee)
+  - [Scanner web GUI](#scanner-web-gui)
   - [How it works](#how-it-works)
   - [How to compile](#how-to-compile)
+  - [Tests](#tests)
+  - [License](#license)
   - [What's next](#whats-next)
 
 
@@ -38,6 +41,8 @@ This repository contains firmware to allow capturing 802.15.4 packets with suppo
 Once reflashed, the USB dongle captures 802.15.4 traffic (Zigbee, 6LoWPAN/Thread) and sends frames in JSON format over USB serial to the host computer.
 
 Wireshark can then be used to display the captured packets.
+
+> This is a fork of [ErkSponge/Sniffer_802.15.4_SONOFF_USB_Dongle_Plus_E](https://github.com/ErkSponge/Sniffer_802.15.4_SONOFF_USB_Dongle_Plus_E). It adds a [channel-hopping web scanner](#scanner-web-gui), a host-side [test suite](#tests), CI, and fixes for the channel selection, RSSI formatting and MAC pack/unpack bugs. See [changelog.md](changelog.md).
 
 ## What's needed
 
@@ -191,6 +196,18 @@ Capture example
 ![wireshark capture example](/docs/example_capture.PNG)
 
 
+## Scanner web GUI
+
+`scanner/` is a local web GUI that hops across channels 11-26 with a dongle running the sniffer firmware and summarises what it hears: frames per channel, networks (PAN), nodes and recent frames. It is passive and decodes headers only.
+
+```bash
+pip install pyserial
+python3 scanner/server.py --device /dev/ttyUSB0   # then open http://127.0.0.1:8154/
+python3 scanner/server.py --simulate              # demo without hardware
+```
+
+See [scanner/README.md](scanner/README.md) for details.
+
 ## How it works
 
 The USB dongle records 802.15.4 packets, converts to a JSON format and transfers via COM port at 1Mbit/s.
@@ -267,6 +284,20 @@ and to compile the Sonoff Dongle Plus E sniffer:
 docker run --rm -v ".:/home/app" --name build_container erksponge/gcc_arm_commander_jflash:latest make rebuild -f ./Sources/Target/Sonoff_USB_Dongle_Plus_E/makefile -j8
 ```
 
+## Tests
+
+Host-side C tests (built with ASan/UBSan) and Python tests for the extcap script and the scanner. They need a C compiler and Python 3, but no dongle:
+
+```bash
+make -C tests test
+```
+
+CI runs this on every push and pull request.
+
+## License
+
+The repository is under the MIT [LICENSE](LICENSE), with the per-file exceptions it describes (for example the Silicon Labs headers under `Sources/HAL/`, which keep their own license). The fork additions (`scanner/`, `tests/`, `.github/` and the fixes listed in the changelog) are also MIT, copyright GeospatialDaryl.
+
 ## What's next
 
 This is a spare-time project, and feedback is welcome. If you find the project useful, a star is appreciated.
@@ -276,5 +307,5 @@ Current priorities include:
 - Add support for additional dongles such as SMLIGHT SLZB-07 MG24
 - Migrate the build system from Makefiles to CMake for better cross-platform support
 - Improve the Docker/container environment to support CMake
-- Add GitHub CI/CD for automated builds and releases
+- Extend the GitHub CI (currently runs the host tests) to automated firmware builds and releases
 

@@ -9,7 +9,7 @@ jobs:
   host-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Python dependencies
         run: pip install -r requirements.txt
       - name: Run host tests
@@ -25,7 +25,7 @@ jobs:
           - Sonoff_LMG21
           - smlight_slzb_07
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install ARM toolchain
         run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
       # Simplicity Commander (.gbl packaging) is not available in CI, so it is stubbed out.

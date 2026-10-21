@@ -14,3 +14,20 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run host tests
         run: make -C tests test
+
+  firmware-build:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - Sonoff_USB_Dongle_Plus_E
+          - Sonoff_LMG21
+          - smlight_slzb_07
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
+      # Simplicity Commander (.gbl packaging) is not available in CI, so it is stubbed out.
+      - name: Build ${{ matrix.target }}
+        run: make rebuild -f Sources/Target/${{ matrix.target }}/makefile COMMANDER=true

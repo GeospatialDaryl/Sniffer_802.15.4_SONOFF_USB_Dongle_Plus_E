@@ -7,6 +7,10 @@ summarises what it hears: frames per channel, networks (PAN), nodes, and a recen
     python3 scanner/server.py --device /dev/ttyUSB0     # then open http://127.0.0.1:8154/
     python3 scanner/server.py --simulate                # demo without hardware
 
+Terminal UI (btop-style, stdlib curses) that talks to the running server:
+
+    python3 scanner/tui.py        # q quit, s scan, l/enter lock, i idle, </> select channel, +/- dwell
+
 - The dongle must run the sniffer firmware (`Output/<board>/*.gbl`). Flashing replaces its coordinator firmware, so use a spare.
 - Passive only: headers are decoded, encrypted payloads are not. Secured NWK frames still expose
   short addresses and, often, the sender's EUI-64; `D8:D5:B9` (Rainforest) is highlighted.

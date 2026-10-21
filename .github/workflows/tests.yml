@@ -7,7 +7,7 @@ on:
 
 jobs:
   host-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
       - name: Install Python dependencies
@@ -31,3 +31,13 @@ jobs:
       # Simplicity Commander (.gbl packaging) is not available in CI, so it is stubbed out.
       - name: Build ${{ matrix.target }}
         run: make rebuild -f Sources/Target/${{ matrix.target }}/makefile COMMANDER=true
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.target }}
+          path: |
+            Output/Sniffer_802.15.4_*/*.elf
+            Output/Sniffer_802.15.4_*/*.bin
+            Output/Sniffer_802.15.4_*/*.hex
+            Output/Sniffer_802.15.4_*/*.map
+          if-no-files-found: error
